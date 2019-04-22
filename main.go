@@ -2,12 +2,10 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"os"
 
 	"gopkg.in/src-d/go-git.v4"
 	. "gopkg.in/src-d/go-git.v4/_examples"
-	"gopkg.in/src-d/go-git.v4/plumbing"
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 )
 
@@ -62,24 +60,25 @@ func main() {
 	err = cIter.ForEach(func(c *object.Commit) error {
 		fmt.Println(c)
 
-		ci := c.Parents()
-		parentCommit, err := ci.Next()
+		fromTree, err := c.Tree()
 		if err != nil {
-			if err == io.EOF {
-				o, err := r.Storer.EncodedObject(plumbing.CommitObject, plumbing.Hash{})
-				if err != nil {
-					checkIfError("Storer.EncodedObject...", err)
-				}
-				parentCommit, err = object.DecodeCommit(r.Storer, o)
-				if err != nil {
-					checkIfError("object.DecodeCommit...", err)
-				}
-			} else {
+			return err
+		}
+
+		toTree := &object.Tree{}
+		if c.NumParents() != 0 {
+			firstParent, err := c.Parents().Next()
+			if err != nil {
+				return err
+			}
+
+			toTree, err = firstParent.Tree()
+			if err != nil {
 				return err
 			}
 		}
 
-		patch, err := parentCommit.Patch(c)
+		patch, err := toTree.Patch(fromTree)
 		if err != nil {
 			return err
 		}
